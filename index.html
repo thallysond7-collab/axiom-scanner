@@ -1,80 +1,179 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Axiom Scanner</title>
-  <style>
-    :root { --lime: #a3e635; --bg: #0a0f0a; --card: #11170f; }
-    body { margin:0; font-family:system-ui; background:var(--bg); color:#e0f2e0; }
-    .root { min-height:100vh; padding:15px; }
-    .logo { font-size:26px; font-weight:900; color:var(--lime); }
-    .live { color:var(--lime); font-weight:600; }
-    .precision { background:#1a231a; padding:15px; border-radius:12px; margin-bottom:20px; text-align:center; }
-    .row { background:var(--card); padding:16px; border-radius:12px; margin-bottom:12px; }
-    .ca { font-size:11px; color:#889988; cursor:pointer; }
-    button { background:var(--lime); color:#0a0f0a; font-weight:700; border:none; padding:15px; border-radius:10px; width:100%; margin-top:10px; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Axiom Scanner</title>
+
+<style>
+:root { --lime:#a3e635; --bg:#0a0f0a; --card:#11170f; }
+
+body {
+  margin:0;
+  font-family:system-ui;
+  background:var(--bg);
+  color:#e0f2e0;
+}
+
+.root { min-height:100vh; padding:15px; }
+
+.logo { font-size:26px; font-weight:900; color:var(--lime); }
+.live { color:var(--lime); font-weight:600; }
+
+.precision {
+  background:#1a231a;
+  padding:15px;
+  border-radius:12px;
+  margin-bottom:20px;
+  text-align:center;
+}
+
+.row {
+  background:var(--card);
+  padding:16px;
+  border-radius:12px;
+  margin-bottom:12px;
+  display:flex;
+  justify-content:space-between;
+}
+
+.ca {
+  font-size:11px;
+  color:#889988;
+  cursor:pointer;
+}
+
+button {
+  background:var(--lime);
+  color:#0a0f0a;
+  font-weight:700;
+  border:none;
+  padding:15px;
+  border-radius:10px;
+  width:100%;
+  margin-top:10px;
+}
+
+.status {
+  text-align:center;
+  padding:15px;
+  border-radius:12px;
+  background:#1f2a1f;
+  color:var(--lime);
+}
+</style>
 </head>
+
 <body>
-  <div class="root">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-      <div class="logo">◈ AXIOM SCANNER</div>
-      <div class="live">● LIVE • SOLANA</div>
-    </div>
+<div class="root">
 
-    <div class="precision" id="precision">
-      Medidor de Precisão<br>
-      Acertadas: <span id="hits">14</span> | Erradas: <span id="misses">4</span><br>
-      <span id="accuracy" style="font-size:24px;color:var(--lime)">78%</span>
-    </div>
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+  <div class="logo">◈ AXIOM SCANNER</div>
+  <div class="live">● LIVE • SOLANA</div>
+</div>
 
-    <div id="content">Carregando tokens reais da Solana...</div>
+<div class="precision">
+  Medidor de Precisão<br>
+  Acertadas: <span id="hits">14</span> | Erradas: <span id="misses">4</span><br>
+  <span id="accuracy" style="font-size:24px;color:var(--lime)">78%</span>
+</div>
 
-    <button onclick="loadData()">↺ Atualizar Dados</button>
-  </div>
+<div id="content" class="status">Carregando tokens...</div>
 
-  <script>
-    async function loadData() {
-      const content = document.getElementById('content');
-      content.innerHTML = `<div style="padding:20px;background:#1f2a1f;color:#a3e635;border-radius:12px;text-align:center;">Buscando tokens reais...</div>`;
+<button onclick="loadData()">↺ Atualizar Agora</button>
 
-      // Proxy mais estável no momento
-      const proxy = 'https://api.allorigins.win/raw?url=';
-      const api = 'https://api.dexscreener.com/dex/search?q=solana&limit=50';
+</div>
 
-      try {
-        const res = await fetch(proxy + encodeURIComponent(api));
-        const data = await res.json();
+<script>
 
-        let html = '';
-        data.pairs?.slice(0, 20).forEach(p => {
-          const mc = p.fdv || p.marketCap || 0;
-          const symbol = p.baseToken?.symbol || '???';
-          const ca = p.baseToken?.address || '';
-          const change = p.priceChange?.h1 || 0;
+const proxies = [
+  "https://corsproxy.io/?",
+  "https://api.codetabs.com/v1/proxy?quest="
+];
 
-          html += `
-            <div class="row">
-              <div>
-                <strong>${symbol}</strong><br>
-                MC ${mc >= 1000000 ? '$'+(mc/1000000).toFixed(2)+'M' : '$'+Math.round(mc/1000)+'K'}
-                <div class="ca" onclick="navigator.clipboard.writeText('${ca}');alert('CA copiado!')">CA: ${ca.slice(0,12)}...</div>
-              </div>
-              <div style="text-align:right;color:${change>=0?'#a3e635':'#ff6655'}">
-                ${change>=0?'+' : ''}${change.toFixed(1)}%<br>
-                <small>Prob 1M: ${mc < 800000 ? '42%' : '—'}</small>
-              </div>
-            </div>`;
-        });
+const api = "https://api.dexscreener.com/dex/search?q=solana";
 
-        content.innerHTML = html || '<div style="color:#ff6655;padding:20px;">Nenhum token encontrado.</div>';
-      } catch (e) {
-        content.innerHTML = `<div style="padding:20px;background:#2a1f1f;color:#ff9988;border-radius:12px;text-align:center;">API bloqueada no momento.<br>Tente novamente em 15s.</div>`;
-      }
+async function fetchWithFallback(url) {
+  for (let proxy of proxies) {
+    try {
+      const res = await fetch(proxy + encodeURIComponent(url));
+      if (res.ok) return await res.json();
+    } catch (e) {}
+  }
+  throw new Error("Todos proxies falharam");
+}
+
+function calcProb(mc) {
+  if (mc < 200000) return "70%";
+  if (mc < 500000) return "50%";
+  if (mc < 1000000) return "30%";
+  return "10%";
+}
+
+async function loadData() {
+  const content = document.getElementById('content');
+
+  content.innerHTML = `<div class="status">Buscando tokens reais...</div>`;
+
+  try {
+    const data = await fetchWithFallback(api);
+
+    if (!data || !data.pairs) {
+      throw new Error("Sem dados");
     }
 
-    window.onload = loadData;
-  </script>
+    let html = "";
+
+    data.pairs
+      .filter(p => (p.fdv || 0) > 50000) // filtra lixo
+      .slice(0, 20)
+      .forEach(p => {
+
+        const mc = p.fdv || 0;
+        const symbol = p.baseToken?.symbol || "???";
+        const ca = p.baseToken?.address || "";
+        const change = p.priceChange?.h1 || 0;
+
+        html += `
+        <div class="row">
+          <div>
+            <strong>${symbol}</strong><br>
+            MC ${mc >= 1000000 ? '$'+(mc/1000000).toFixed(2)+'M' : '$'+Math.round(mc/1000)+'K'}
+            <div class="ca" onclick="copyCA('${ca}')">
+              CA: ${ca.slice(0,12)}...
+            </div>
+          </div>
+
+          <div style="text-align:right;color:${change>=0?'#a3e635':'#ff6655'}">
+            ${change>=0?'+':''}${change.toFixed(1)}%<br>
+            <small>Prob 1M: ${calcProb(mc)}</small>
+          </div>
+        </div>`;
+      });
+
+    content.innerHTML = html || `<div class="status">Nenhum token encontrado.</div>`;
+
+  } catch (e) {
+    content.innerHTML = `
+    <div style="padding:20px;background:#2a1f1f;color:#ff9988;border-radius:12px;text-align:center;">
+      API bloqueada no momento.<br>
+      tentando novamente automaticamente...
+    </div>`;
+  }
+}
+
+// copiar CA melhorado
+function copyCA(text) {
+  navigator.clipboard.writeText(text);
+  alert("CA copiado!");
+}
+
+// auto refresh (scanner real)
+setInterval(loadData, 20000);
+
+// iniciar
+window.onload = loadData;
+
+</script>
 </body>
 </html>
