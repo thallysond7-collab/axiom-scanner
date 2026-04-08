@@ -8,13 +8,12 @@
     :root { --lime: #a3e635; --bg: #0a0f0a; --card: #11170f; }
     body { margin:0; font-family:system-ui; background:var(--bg); color:#e0f2e0; }
     .root { min-height:100vh; padding:15px; }
-    .logo { font-size:26px; font-weight:900; background:linear-gradient(90deg,#a3e635,#4ade80); -webkit-background-clip:text; color:transparent; }
+    .logo { font-size:26px; font-weight:900; color:var(--lime); }
     .live { color:var(--lime); font-weight:600; }
     .precision { background:#1a231a; padding:15px; border-radius:12px; margin-bottom:20px; text-align:center; }
     .row { background:var(--card); padding:16px; border-radius:12px; margin-bottom:12px; }
-    .ca { font-size:11px; color:#889988; cursor:pointer; margin-top:4px; }
-    button { background:var(--lime); color:#0a0f0a; font-weight:700; border:none; padding:15px; border-radius:10px; width:100%; margin-top:10px; font-size:16px; }
-    .pill { font-size:11px; padding:4px 10px; border-radius:20px; background:#1f2a1f; color:var(--lime); margin-right:5px; }
+    .ca { font-size:11px; color:#889988; cursor:pointer; }
+    button { background:var(--lime); color:#0a0f0a; font-weight:700; border:none; padding:15px; border-radius:10px; width:100%; margin-top:10px; }
   </style>
 </head>
 <body>
@@ -26,88 +25,56 @@
 
     <div class="precision" id="precision">
       Medidor de Precisão<br>
-      Acertadas: <span id="hits" style="color:#a3e635">14</span> | Erradas: <span id="misses" style="color:#ff6655">4</span><br>
-      <span id="accuracy" style="font-size:24px; font-weight:700; color:var(--lime)">78%</span><br>
-      <small>Total X: <span id="totalX">21.7x</span> • MC Ganho: <span id="totalMC">$68.4K</span></small>
+      Acertadas: <span id="hits">14</span> | Erradas: <span id="misses">4</span><br>
+      <span id="accuracy" style="font-size:24px;color:var(--lime)">78%</span>
     </div>
 
-    <div id="content"></div>
+    <div id="content">Carregando tokens reais da Solana...</div>
 
-    <button onclick="loadData()">↺ Atualizar Dados em Tempo Real</button>
+    <button onclick="loadData()">↺ Atualizar Dados</button>
   </div>
 
   <script>
-    let hits = 14, misses = 4, totalX = 21.7, totalMC = 68400;
-
-    function updatePrecision() {
-      const acc = Math.round((hits / (hits + misses)) * 100);
-      document.getElementById('hits').textContent = hits;
-      document.getElementById('misses').textContent = misses;
-      document.getElementById('accuracy').textContent = acc + '%';
-      document.getElementById('totalX').textContent = totalX.toFixed(1) + 'x';
-      document.getElementById('totalMC').textContent = '$' + (totalMC/1000).toFixed(1) + 'K';
-    }
-
     async function loadData() {
       const content = document.getElementById('content');
-      content.innerHTML = `<div style="padding:25px; background:#1f2a1f; color:#a3e635; border-radius:12px; text-align:center;">Buscando tokens reais...</div>`;
+      content.innerHTML = `<div style="padding:20px;background:#1f2a1f;color:#a3e635;border-radius:12px;text-align:center;">Buscando tokens reais...</div>`;
 
-      // Melhores proxies atuais
-      const proxies = [
-        'https://corsproxy.io/?',
-        'https://api.allorigins.win/raw?url=',
-        'https://proxy.cors.sh/',
-        'https://thingproxy.freeboard.io/fetch/'
-      ];
-
+      // Proxy mais estável no momento
+      const proxy = 'https://api.allorigins.win/raw?url=';
       const api = 'https://api.dexscreener.com/dex/search?q=solana&limit=50';
 
-      for (let p of proxies) {
-        try {
-          const url = p.includes('allorigins') || p.includes('cors.sh') 
-            ? p + encodeURIComponent(api) 
-            : p + encodeURIComponent(api);
+      try {
+        const res = await fetch(proxy + encodeURIComponent(api));
+        const data = await res.json();
 
-          const res = await fetch(url, { headers: p.includes('cors.sh') ? {'x-cors-api-key': 'temp'} : {} });
-          if (!res.ok) continue;
+        let html = '';
+        data.pairs?.slice(0, 20).forEach(p => {
+          const mc = p.fdv || p.marketCap || 0;
+          const symbol = p.baseToken?.symbol || '???';
+          const ca = p.baseToken?.address || '';
+          const change = p.priceChange?.h1 || 0;
 
-          let data = await res.json();
-          if (p.includes('allorigins')) data = data;
+          html += `
+            <div class="row">
+              <div>
+                <strong>${symbol}</strong><br>
+                MC ${mc >= 1000000 ? '$'+(mc/1000000).toFixed(2)+'M' : '$'+Math.round(mc/1000)+'K'}
+                <div class="ca" onclick="navigator.clipboard.writeText('${ca}');alert('CA copiado!')">CA: ${ca.slice(0,12)}...</div>
+              </div>
+              <div style="text-align:right;color:${change>=0?'#a3e635':'#ff6655'}">
+                ${change>=0?'+' : ''}${change.toFixed(1)}%<br>
+                <small>Prob 1M: ${mc < 800000 ? '42%' : '—'}</small>
+              </div>
+            </div>`;
+        });
 
-          if (data.pairs?.length > 0) {
-            let html = '';
-            data.pairs.slice(0, 18).forEach(p => {
-              const mc = p.fdv || p.marketCap || 0;
-              const symbol = p.baseToken?.symbol || '???';
-              const ca = p.baseToken?.address || '';
-              const change = p.priceChange?.h1 || 0;
-
-              html += `
-                <div class="row">
-                  <div>
-                    <strong>${symbol}</strong><br>
-                    MC ${mc >= 1e6 ? '$'+(mc/1e6).toFixed(2)+'M' : '$'+Math.round(mc/1000)+'K'}
-                    <div class="ca" onclick="navigator.clipboard.writeText('${ca}');alert('CA copiado!')">CA: ${ca ? ca.slice(0,12)+'...' : '—'}</div>
-                  </div>
-                  <div style="text-align:right">
-                    <span style="color:${change>=0?'#a3e635':'#ff6655'}">${change>=0?'+' : ''}${change.toFixed(1)}%</span><br>
-                    <span class="pill">100K ${mc<100000 ? '85%' : '—'}</span>
-                    <span class="pill">500K ${mc<500000 ? '62%' : '—'}</span>
-                    <span class="pill">1M ${mc<1e6 ? '41%' : '—'}</span>
-                  </div>
-                </div>`;
-            });
-            content.innerHTML = html;
-            return;
-          }
-        } catch(e) {}
+        content.innerHTML = html || '<div style="color:#ff6655;padding:20px;">Nenhum token encontrado.</div>';
+      } catch (e) {
+        content.innerHTML = `<div style="padding:20px;background:#2a1f1f;color:#ff9988;border-radius:12px;text-align:center;">API bloqueada no momento.<br>Tente novamente em 15s.</div>`;
       }
-
-      content.innerHTML = `<div style="padding:25px; background:#2a1f1f; color:#ff9988; border-radius:12px; text-align:center;">API ainda indisponível.<br>Tente novamente em 15 segundos.</div>`;
     }
 
-    window.onload = () => { loadData(); setInterval(loadData, 25000); };
-    updatePrecision();
+    window.onload = loadData;
   </script>
 </body>
 </html>
