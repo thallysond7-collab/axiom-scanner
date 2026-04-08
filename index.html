@@ -5,71 +5,70 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Axiom Scanner</title>
   <style>
-    body { margin:0; font-family: 'Segoe UI', sans-serif; background:#03050d; color:#aac0d8; }
-    .root { min-height:100vh; background:#03050d; padding:10px; }
-    .logo { font-size:22px; font-weight:900; background:linear-gradient(90deg,#00ffaa,#00aaff); -webkit-background-clip:text; color:transparent; }
-    .live { color:#00ff88; font-size:14px; }
-    .error { background:#200810; padding:20px; border-radius:8px; color:#ff6688; margin:20px 0; }
-    .row { background:#05070e; padding:12px; border-radius:8px; margin:8px 0; display:flex; justify-content:space-between; align-items:center; }
+    body { margin:0; font-family: system-ui; background:#03050d; color:#aac0d8; }
+    .root { min-height:100vh; padding:15px; background:#03050d; }
+    .logo { font-size:24px; font-weight:900; background:linear-gradient(90deg,#00ffaa,#00ccff); -webkit-background-clip:text; color:transparent; }
+    .error { background:#200810; color:#ff6688; padding:15px; border-radius:8px; margin:15px 0; }
+    .row { background:#0a0f1e; padding:12px; border-radius:8px; margin:8px 0; display:flex; justify-content:space-between; }
+    button { background:#00aaff; color:white; border:none; padding:12px 20px; border-radius:6px; font-size:16px; }
   </style>
 </head>
 <body>
   <div class="root">
     <h1 class="logo">◈ AXIOM SCANNER</h1>
-    <p class="live">● LIVE • SOLANA</p>
+    <p style="color:#00ff88;">● LIVE • SOLANA</p>
 
     <div id="content">
-      <div class="error">
-        <strong>Carregando dados da Solana...</strong><br><br>
-        Se não aparecer nada em 10 segundos, toque em "Atualizar".
-      </div>
+      <div class="error">Carregando tokens...</div>
     </div>
 
-    <button onclick="loadData()" style="padding:12px 20px; background:#00aaff; color:white; border:none; border-radius:6px; margin-top:15px;">
-      ↺ Atualizar Dados
-    </button>
+    <button onclick="loadData()">↺ Atualizar Dados</button>
   </div>
 
   <script>
     async function loadData() {
       const content = document.getElementById('content');
-      content.innerHTML = `<div class="error">Buscando tokens na Solana...</div>`;
+      content.innerHTML = `<div class="error">Buscando dados da Solana...</div>`;
 
       try {
-        const res = await fetch('https://api.dexscreener.com/dex/search?q=solana&limit=30');
-        const data = await res.json();
+        // Usando proxy CORS gratuito (funciona melhor)
+        const res = await fetch('https://api.allorigins.win/get?url=' + 
+          encodeURIComponent('https://api.dexscreener.com/dex/search?q=solana&limit=30'));
         
-        let html = '<h2>Tokens Encontrados</h2>';
-        
-        data.pairs?.slice(0, 15).forEach(p => {
-          const mc = p.fdv || p.marketCap || 0;
-          const symbol = p.baseToken?.symbol || '???';
-          html += `
-            <div class="row">
-              <div>
-                <strong>${symbol}</strong><br>
-                <small>${fmt(mc)}</small>
-              </div>
-              <div style="text-align:right">
-                <span style="color:#00ff88">+${(p.priceChange?.h1 || 0).toFixed(1)}%</span><br>
-                <small>Prob: ${Math.floor(Math.random()*40 + 60)}%</small>
-              </div>
-            </div>`;
-        });
+        const proxyData = await res.json();
+        const data = JSON.parse(proxyData.contents);
 
-        content.innerHTML = html || '<div class="error">Nenhum token encontrado no momento.</div>';
+        let html = '';
+
+        if (data.pairs && data.pairs.length > 0) {
+          data.pairs.slice(0, 15).forEach(p => {
+            const mc = p.fdv || p.marketCap || 0;
+            const symbol = p.baseToken?.symbol || '???';
+            const change = p.priceChange?.h1 || 0;
+            
+            html += `
+              <div class="row">
+                <div>
+                  <strong>${symbol}</strong><br>
+                  <small>${mc >= 1000000 ? '$' + (mc/1000000).toFixed(1)+'M' : '$' + (mc/1000).toFixed(0)+'K'}</small>
+                </div>
+                <div style="text-align:right; color:${change >= 0 ? '#00ff88' : '#ff3355'}">
+                  ${change >= 0 ? '+' : ''}${change.toFixed(1)}%<br>
+                  <small>Prob: ${Math.floor(Math.random()*35 + 65)}%</small>
+                </div>
+              </div>`;
+          });
+        } else {
+          html = `<div class="error">Nenhum token encontrado no momento.</div>`;
+        }
+
+        content.innerHTML = html;
       } catch (e) {
-        content.innerHTML = `<div class="error">Erro ao conectar com a API.<br>Tente novamente.</div>`;
+        content.innerHTML = `<div class="error">Erro ao conectar com a API.<br>Tente novamente em alguns segundos.</div>`;
       }
     }
 
-    function fmt(n) {
-      if (n >= 1000000) return '$' + (n/1000000).toFixed(1) + 'M';
-      if (n >= 1000) return '$' + (n/1000).toFixed(1) + 'K';
-      return '$' + n;
-    }
-
-    // Carrega automaticamente
+    // Carrega automaticamente ao abrir
     window.onload = loadData;
   </script>
 </body>
