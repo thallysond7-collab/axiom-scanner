@@ -3,83 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Axiom Scanner PRO</title>
+<title>Axiom Scanner Mobile</title>
 
 <style>
-:root { --lime:#a3e635; --bg:#0a0f0a; --card:#11170f; }
-
-body {
-  margin:0;
-  font-family:system-ui;
-  background:var(--bg);
-  color:#e0f2e0;
-}
-
+body { margin:0; font-family:system-ui; background:#0a0f0a; color:#e0f2e0; }
 .root { padding:15px; }
-
-.logo { font-size:26px; font-weight:900; color:var(--lime); }
-.live { color:var(--lime); }
-
-.box {
-  background:#1a231a;
-  padding:15px;
-  border-radius:12px;
-  margin-bottom:15px;
-}
-
-.row {
-  background:var(--card);
-  padding:14px;
-  border-radius:12px;
-  margin-bottom:10px;
-  display:flex;
-  justify-content:space-between;
-}
-
-.ca { font-size:11px; color:#889988; }
-
-.score {
-  font-size:13px;
-  margin-top:5px;
-  color:#9ccc9c;
-}
-
-.explain {
-  font-size:12px;
-  margin-top:5px;
-  color:#6f8f6f;
-}
-
-button {
-  width:100%;
-  padding:14px;
-  border:none;
-  border-radius:10px;
-  background:var(--lime);
-  font-weight:700;
-}
+.logo { font-size:24px; font-weight:900; color:#a3e635; }
+.row { background:#11170f; padding:12px; border-radius:10px; margin-bottom:10px; display:flex; justify-content:space-between; }
+.small { font-size:11px; color:#889988; }
+.good { color:#a3e635; }
+.bad { color:#ff6655; }
 </style>
 </head>
 
 <body>
 <div class="root">
 
-<div style="display:flex; justify-content:space-between;">
-  <div class="logo">◈ AXIOM PRO</div>
-  <div class="live">● LIVE</div>
-</div>
+<div class="logo">◈ AXIOM MOBILE</div>
+<div id="status">Conectando mercado...</div>
 
-<div class="box">
-🧠 <b>Como a IA calcula:</b><br>
-• MC baixo = mais chance<br>
-• Volume alto = força<br>
-• Pump recente = tendência<br>
-• Score final = probabilidade de explosão 🚀
-</div>
-
-<div id="content">Carregando mercado...</div>
-
-<button onclick="load()">Atualizar</button>
+<div id="list"></div>
 
 </div>
 
@@ -91,21 +34,21 @@ const proxies = [
   "https://api.allorigins.win/raw?url="
 ];
 
-const API = "https://api.dexscreener.com/dex/search?q=solana";
+const API = "https://api.dexscreener.com/latest/dex/pairs/solana";
 
-async function getData() {
+async function fetchData() {
   for (let p of proxies) {
     try {
       let res = await fetch(p + encodeURIComponent(API));
       if (res.ok) return await res.json();
     } catch {}
   }
-  throw "erro";
+  return null;
 }
 
 function calcScore(p) {
   let mc = p.fdv || 0;
-  let vol = p.volume?.h1 || 0;
+  let vol = p.volume?.h24 || 0;
   let change = p.priceChange?.h1 || 0;
 
   let score = 0;
@@ -114,8 +57,8 @@ function calcScore(p) {
   else if (mc < 800000) score += 25;
   else score += 10;
 
-  if (vol > 50000) score += 30;
-  else if (vol > 10000) score += 15;
+  if (vol > 100000) score += 30;
+  else if (vol > 20000) score += 15;
 
   if (change > 5) score += 30;
   else if (change > 0) score += 15;
@@ -123,67 +66,52 @@ function calcScore(p) {
   return Math.min(score, 100);
 }
 
-function explain(p, score) {
-  let mc = p.fdv || 0;
-  let vol = p.volume?.h1 || 0;
-  let change = p.priceChange?.h1 || 0;
-
-  return `
-  MC: ${Math.round(mc/1000)}K |
-  Vol: ${Math.round(vol)} |
-  Trend: ${change.toFixed(1)}% |
-  Score: ${score}%
-  `;
-}
-
 async function load() {
-  const el = document.getElementById("content");
-  el.innerHTML = "Buscando dados reais...";
+  const status = document.getElementById("status");
+  const list = document.getElementById("list");
 
-  try {
-    const data = await getData();
+  status.innerText = "Buscando moedas reais...";
 
-    let html = "";
+  const data = await fetchData();
 
-    data.pairs.slice(0,20).forEach(p => {
-
-      let score = calcScore(p);
-      let symbol = p.baseToken?.symbol || "???";
-      let ca = p.baseToken?.address || "";
-      let change = p.priceChange?.h1 || 0;
-
-      html += `
-      <div class="row">
-        <div>
-          <b>${symbol}</b><br>
-          <div class="ca">${ca.slice(0,10)}...</div>
-          <div class="explain">${explain(p, score)}</div>
-        </div>
-
-        <div style="text-align:right;color:${score>60?'#a3e635':'#ff6655'}">
-          ${score}%<br>
-          <div class="score">Prob 🚀</div>
-        </div>
-      </div>
-      `;
-    });
-
-    el.innerHTML = html;
-
-  } catch {
-    el.innerHTML = `
-    <div style="color:#ff7777">
-    ❌ Falha ao acessar API<br>
-    Isso é limitação do celular + CORS<br><br>
-    💡 solução real: backend (te ensino se quiser)
-    </div>`;
+  if (!data || !data.pairs) {
+    status.innerText = "❌ Falha (bloqueio de API no celular)";
+    return;
   }
+
+  status.innerText = "✅ Conectado";
+
+  let html = "";
+
+  data.pairs.slice(0, 20).forEach(p => {
+
+    let score = calcScore(p);
+    let symbol = p.baseToken?.symbol || "???";
+    let change = p.priceChange?.h1 || 0;
+    let mc = p.fdv || 0;
+
+    html += `
+    <div class="row">
+      <div>
+        <b>${symbol}</b><br>
+        <span class="small">MC: ${Math.round(mc/1000)}K</span><br>
+        <span class="small">Trend: ${change.toFixed(1)}%</span>
+      </div>
+
+      <div class="${score>60?'good':'bad'}">
+        ${score}%<br>
+        <span class="small">Prob 🚀</span>
+      </div>
+    </div>
+    `;
+  });
+
+  list.innerHTML = html;
 }
 
 setInterval(load, 20000);
 load();
 
 </script>
-
 </body>
 </html>
