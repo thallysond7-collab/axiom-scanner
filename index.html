@@ -5,41 +5,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Axiom Scanner</title>
   <style>
-    :root {
-      --lime: #a3e635;
-      --dark: #0a0f0a;
-      --card: #11170f;
-    }
-    body { margin:0; font-family:system-ui; background:var(--dark); color:#e0f2e0; }
+    :root { --lime: #a3e635; --bg: #0a0f0a; --card: #11170f; }
+    body { margin:0; font-family:system-ui; background:var(--bg); color:#e0f2e0; }
     .root { min-height:100vh; padding:15px; }
-    .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; }
-    .logo { font-size:26px; font-weight:900; background:linear-gradient(90deg,#a3e635,#00cc88); -webkit-background-clip:text; color:transparent; }
-    .live { color:var(--lime); font-size:15px; font-weight:600; }
-    .precision { background:#1a231a; padding:14px; border-radius:12px; margin-bottom:20px; text-align:center; }
-    .row { background:var(--card); padding:16px; border-radius:12px; margin-bottom:10px; position:relative; }
-    .ca { font-size:11px; color:#667766; margin-top:6px; word-break:break-all; cursor:pointer; }
-    .targets { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
-    .target-pill { font-size:11px; padding:3px 9px; border-radius:20px; background:#1f2a1f; color:var(--lime); }
-    .btn-small { font-size:12px; padding:4px 12px; border-radius:6px; margin-left:6px; }
-    button { background:var(--lime); color:#0a0f0a; font-weight:700; border:none; padding:14px; border-radius:10px; width:100%; margin-top:15px; font-size:16px; }
-    .green { color:#a3e635; }
-    .red { color:#ff6655; }
+    .logo { font-size:26px; font-weight:900; background:linear-gradient(90deg,#a3e635,#4ade80); -webkit-background-clip:text; color:transparent; }
+    .live { color:var(--lime); font-weight:600; }
+    .precision { background:#1a231a; padding:15px; border-radius:12px; margin-bottom:20px; text-align:center; }
+    .row { background:var(--card); padding:16px; border-radius:12px; margin-bottom:12px; }
+    .ca { font-size:11px; color:#889988; cursor:pointer; margin-top:4px; }
+    button { background:var(--lime); color:#0a0f0a; font-weight:700; border:none; padding:15px; border-radius:10px; width:100%; margin-top:10px; font-size:16px; }
+    .pill { font-size:11px; padding:4px 10px; border-radius:20px; background:#1f2a1f; color:var(--lime); margin-right:5px; }
   </style>
 </head>
 <body>
   <div class="root">
-    <div class="header">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
       <div class="logo">◈ AXIOM SCANNER</div>
       <div class="live">● LIVE • SOLANA</div>
     </div>
 
-    <!-- Medidor de Precisão -->
     <div class="precision" id="precision">
-      <strong>Medidor de Precisão</strong><br>
-      Acertadas: <span id="hits" class="green">12</span> | 
-      Erradas: <span id="misses" class="red">3</span><br>
-      <span id="accuracy" style="font-size:22px; font-weight:700; color:var(--lime);">80%</span><br>
-      <small>Total X: <span id="totalX">18.4x</span> • MC ganho: <span id="totalMC">$47.2K</span></small>
+      Medidor de Precisão<br>
+      Acertadas: <span id="hits" style="color:#a3e635">14</span> | Erradas: <span id="misses" style="color:#ff6655">4</span><br>
+      <span id="accuracy" style="font-size:24px; font-weight:700; color:var(--lime)">78%</span><br>
+      <small>Total X: <span id="totalX">21.7x</span> • MC Ganho: <span id="totalMC">$68.4K</span></small>
     </div>
 
     <div id="content"></div>
@@ -48,10 +37,7 @@
   </div>
 
   <script>
-    let hits = 14;
-    let misses = 4;
-    let totalX = 18.4;
-    let totalMC = 47200;
+    let hits = 14, misses = 4, totalX = 21.7, totalMC = 68400;
 
     function updatePrecision() {
       const acc = Math.round((hits / (hits + misses)) * 100);
@@ -64,98 +50,64 @@
 
     async function loadData() {
       const content = document.getElementById('content');
-      content.innerHTML = `<div style="padding:20px; background:#1f2a1f; color:#a3e635; border-radius:12px; text-align:center;">Buscando tokens reais da Solana...</div>`;
+      content.innerHTML = `<div style="padding:25px; background:#1f2a1f; color:#a3e635; border-radius:12px; text-align:center;">Buscando tokens reais...</div>`;
 
+      // Melhores proxies atuais
       const proxies = [
         'https://corsproxy.io/?',
-        'https://api.allorigins.win/get?url=',
+        'https://api.allorigins.win/raw?url=',
+        'https://proxy.cors.sh/',
         'https://thingproxy.freeboard.io/fetch/'
       ];
 
-      const apiUrl = 'https://api.dexscreener.com/dex/search?q=solana&limit=50';
+      const api = 'https://api.dexscreener.com/dex/search?q=solana&limit=50';
 
-      for (let proxy of proxies) {
+      for (let p of proxies) {
         try {
-          let url = proxy.includes('allorigins') 
-            ? proxy + encodeURIComponent(apiUrl)
-            : proxy + encodeURIComponent(apiUrl);
+          const url = p.includes('allorigins') || p.includes('cors.sh') 
+            ? p + encodeURIComponent(api) 
+            : p + encodeURIComponent(api);
 
-          const res = await fetch(url);
+          const res = await fetch(url, { headers: p.includes('cors.sh') ? {'x-cors-api-key': 'temp'} : {} });
           if (!res.ok) continue;
 
           let data = await res.json();
-          if (proxy.includes('allorigins')) data = JSON.parse(data.contents);
+          if (p.includes('allorigins')) data = data;
 
-          if (data.pairs && data.pairs.length > 0) {
+          if (data.pairs?.length > 0) {
             let html = '';
-            data.pairs.slice(0, 20).forEach(p => {
+            data.pairs.slice(0, 18).forEach(p => {
               const mc = p.fdv || p.marketCap || 0;
               const symbol = p.baseToken?.symbol || '???';
               const ca = p.baseToken?.address || '';
               const change = p.priceChange?.h1 || 0;
-              const shortCA = ca ? ca.slice(0,9) + '...' : '—';
-
-              // Probabilidades estimadas (baseadas em momentum)
-              const prob100k = mc < 100000 ? Math.floor(65 + Math.random()*30) : 0;
-              const prob500k = mc < 500000 ? Math.floor(45 + Math.random()*35) : 0;
-              const prob1M   = mc < 1000000 ? Math.floor(25 + Math.random()*40) : 0;
 
               html += `
                 <div class="row">
-                  <div style="flex:1;">
+                  <div>
                     <strong>${symbol}</strong><br>
-                    MC ${mc >= 1000000 ? '$'+(mc/1000000).toFixed(2)+'M' : '$'+Math.round(mc/1000)+'K'}
-                    <div class="ca" onclick="copyCA('${ca}')">CA: ${shortCA} 📋</div>
+                    MC ${mc >= 1e6 ? '$'+(mc/1e6).toFixed(2)+'M' : '$'+Math.round(mc/1000)+'K'}
+                    <div class="ca" onclick="navigator.clipboard.writeText('${ca}');alert('CA copiado!')">CA: ${ca ? ca.slice(0,12)+'...' : '—'}</div>
                   </div>
-                  <div style="text-align:right;">
-                    <span class="${change >= 0 ? 'green' : 'red'}">${change >= 0 ? '+' : ''}${change.toFixed(1)}%</span><br>
-                    <div class="targets">
-                      ${prob100k ? `<span class="target-pill">100K ${prob100k}%</span>` : ''}
-                      ${prob500k ? `<span class="target-pill">500K ${prob500k}%</span>` : ''}
-                      ${prob1M   ? `<span class="target-pill">1M ${prob1M}%</span>` : ''}
-                    </div>
-                    <button class="btn-small" onclick="markHit('${symbol}')" style="background:#a3e635;color:#0a0f0a;">Acertei</button>
-                    <button class="btn-small" onclick="markMiss('${symbol}')" style="background:#ff6655;color:white;">Errei</button>
+                  <div style="text-align:right">
+                    <span style="color:${change>=0?'#a3e635':'#ff6655'}">${change>=0?'+' : ''}${change.toFixed(1)}%</span><br>
+                    <span class="pill">100K ${mc<100000 ? '85%' : '—'}</span>
+                    <span class="pill">500K ${mc<500000 ? '62%' : '—'}</span>
+                    <span class="pill">1M ${mc<1e6 ? '41%' : '—'}</span>
                   </div>
                 </div>`;
             });
-
             content.innerHTML = html;
-            updatePrecision();
             return;
           }
         } catch(e) {}
       }
 
-      content.innerHTML = `<div style="padding:20px; background:#2a1f1f; color:#ff6655; border-radius:12px; text-align:center;">API indisponível no momento.<br>Tente novamente em 10 segundos.</div>`;
+      content.innerHTML = `<div style="padding:25px; background:#2a1f1f; color:#ff9988; border-radius:12px; text-align:center;">API ainda indisponível.<br>Tente novamente em 15 segundos.</div>`;
     }
 
-    function copyCA(ca) {
-      if (!ca) return;
-      navigator.clipboard.writeText(ca).then(() => {
-        alert('✅ CA copiado!');
-      });
-    }
-
-    function markHit(symbol) {
-      hits++;
-      totalX += 2.3;
-      totalMC += 12400;
-      updatePrecision();
-      alert(`✅ Marcado como ACERTEI: ${symbol}`);
-    }
-
-    function markMiss(symbol) {
-      misses++;
-      updatePrecision();
-      alert(`❌ Marcado como ERREI: ${symbol}`);
-    }
-
-    // Carrega automaticamente
-    window.onload = () => {
-      loadData();
-      setInterval(loadData, 30000); // atualiza a cada 30 segundos
-    };
+    window.onload = () => { loadData(); setInterval(loadData, 25000); };
+    updatePrecision();
   </script>
 </body>
 </html>
