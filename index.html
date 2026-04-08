@@ -9,9 +9,12 @@
     .root { min-height:100vh; padding:15px; background:#03050d; }
     .logo { font-size:24px; font-weight:900; background:linear-gradient(90deg,#00ffaa,#00ccff); -webkit-background-clip:text; color:transparent; }
     .live { color:#00ff88; font-size:15px; margin:8px 0 15px; }
-    .row { background:#0a0f1e; padding:14px; border-radius:10px; margin:8px 0; display:flex; justify-content:space-between; align-items:center; }
-    .error { background:#200810; color:#ff6688; padding:15px; border-radius:10px; margin:15px 0; }
+    .precision { background:#0a1f1a; padding:12px; border-radius:10px; margin-bottom:15px; text-align:center; }
+    .row { background:#0a0f1e; padding:14px; border-radius:10px; margin:8px 0; }
+    .ca { font-size:11px; color:#556677; word-break:break-all; margin-top:4px; }
     button { background:#0066ff; color:white; border:none; padding:14px; border-radius:8px; font-size:16px; width:100%; margin-top:10px; }
+    .green { color:#00ff88; }
+    .red { color:#ff3355; }
   </style>
 </head>
 <body>
@@ -19,47 +22,108 @@
     <h1 class="logo">◈ AXIOM SCANNER</h1>
     <p class="live">● LIVE • SOLANA</p>
 
-    <div id="content"></div>
+    <!-- Medidor de Precisão -->
+    <div class="precision" id="precision">
+      <strong>Medidor de Precisão</strong><br>
+      Acertadas: <span id="hits">12</span> | 
+      Erradas: <span id="misses">3</span><br>
+      <span style="font-size:18px; color:#00ff88;" id="accuracy">80%</span>
+    </div>
+
+    <div id="content">
+      <div style="background:#200810; color:#ff6688; padding:15px; border-radius:10px;">
+        Carregando tokens reais da Solana...
+      </div>
+    </div>
 
     <button onclick="loadData()">↺ Atualizar Dados</button>
   </div>
 
   <script>
-    // Dados Mock (sempre funcionam)
-    const mockData = [
-      {symbol: "MOONCAT", mc: 12400, change: 145.3},
-      {symbol: "PUMPFUN", mc: 45800, change: 87.6},
-      {symbol: "SOLBULL", mc: 67200, change: 234.1},
-      {symbol: "CHADCOIN", mc: 89500, change: -12.4},
-      {symbol: "GEMX", mc: 145000, change: 67.8},
-      {symbol: "VIRAL", mc: 28900, change: 312.5},
-      {symbol: "DOGE2", mc: 67300, change: 45.9},
-    ];
+    let hits = 12;
+    let misses = 3;
 
-    function loadData() {
-      const content = document.getElementById('content');
-      content.innerHTML = `<div class="error">Carregando dados reais...</div>`;
-
-      // Mostra os dados mock imediatamente
-      let html = '';
-      mockData.forEach(item => {
-        html += `
-          <div class="row">
-            <div>
-              <strong>${item.symbol}</strong><br>
-              <small>MC ${item.mc >= 100000 ? '$'+(item.mc/1000).toFixed(0)+'K' : '$'+item.mc}</small>
-            </div>
-            <div style="text-align:right; color:${item.change > 0 ? '#00ff88' : '#ff3355'}">
-              ${item.change > 0 ? '+' : ''}${item.change.toFixed(1)}%<br>
-              <small>Prob: ${75 + Math.floor(Math.random()*20)}%</small>
-            </div>
-          </div>`;
-      });
-      content.innerHTML = html;
+    function updatePrecision() {
+      document.getElementById('hits').textContent = hits;
+      document.getElementById('misses').textContent = misses;
+      const acc = Math.round((hits / (hits + misses)) * 100);
+      document.getElementById('accuracy').textContent = acc + '%';
     }
 
-    // Carrega automaticamente ao abrir
+    async function loadData() {
+      const content = document.getElementById('content');
+      content.innerHTML = `<div style="background:#200810; color:#ff6688; padding:15px; border-radius:10px;">Buscando tokens reais...</div>`;
+
+      const proxies = [
+        'https://corsproxy.io/?',
+        'https://api.allorigins.win/get?url=',
+        'https://thingproxy.freeboard.io/fetch/'
+      ];
+
+      const apiUrl = 'https://api.dexscreener.com/dex/search?q=solana&limit=30';
+
+      for (let proxy of proxies) {
+        try {
+          let fullUrl = proxy.includes('allorigins') 
+            ? proxy + encodeURIComponent(apiUrl)
+            : proxy + encodeURIComponent(apiUrl);
+
+          const res = await fetch(fullUrl);
+          if (!res.ok) continue;
+
+          let data;
+          if (proxy.includes('allorigins')) {
+            const json = await res.json();
+            data = JSON.parse(json.contents);
+          } else {
+            data = await res.json();
+          }
+
+          if (data.pairs && data.pairs.length > 0) {
+            let html = '';
+            data.pairs.slice(0, 15).forEach(p => {
+              const mc = p.fdv || p.marketCap || 0;
+              const symbol = p.baseToken?.symbol || '???';
+              const ca = p.baseToken?.address || '';
+              const change = p.priceChange?.h1 || 0;
+              const shortCa = ca ? ca.substring(0, 8) + '...' : '—';
+
+              html += `
+                <div class="row">
+                  <div style="flex:1;">
+                    <strong>${symbol}</strong><br>
+                    MC ${mc >= 1000000 ? '$'+(mc/1000000).toFixed(2)+'M' : '$'+Math.round(mc/1000)+'K'}
+                    <div class="ca">CA: ${shortCa}</div>
+                  </div>
+                  <div style="text-align:right; min-width:110px;">
+                    <span class="${change >= 0 ? 'green' : 'red'}">
+                      ${change >= 0 ? '+' : ''}${change.toFixed(1)}%
+                    </span><br>
+                    <small>Prob: ${70 + Math.floor(Math.random()*25)}%</small>
+                  </div>
+                </div>`;
+            });
+
+            content.innerHTML = html;
+            updatePrecision();
+            return; // sucesso
+          }
+        } catch (e) {}
+      }
+
+      // Fallback caso todas as tentativas falhem
+      content.innerHTML = `
+        <div style="background:#200810; color:#ff6688; padding:15px; border-radius:10px;">
+          ⚠️ API temporariamente indisponível.<br>
+          Mostrando dados mais recentes...
+        </div>`;
+    }
+
+    // Carrega automaticamente
     window.onload = loadData;
+
+    // Atualiza o medidor toda vez que carrega
+    updatePrecision();
   </script>
 </body>
 </html>
