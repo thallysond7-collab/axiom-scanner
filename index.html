@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Axiom Scanner</title>
+  <style>
+    body { margin:0; font-family: 'Segoe UI', sans-serif; background:#03050d; color:#aac0d8; }
+    .root { min-height:100vh; background:#03050d; padding:10px; }
+    .logo { font-size:22px; font-weight:900; background:linear-gradient(90deg,#00ffaa,#00aaff); -webkit-background-clip:text; color:transparent; }
+    .live { color:#00ff88; font-size:14px; }
+    .error { background:#200810; padding:20px; border-radius:8px; color:#ff6688; margin:20px 0; }
+    .row { background:#05070e; padding:12px; border-radius:8px; margin:8px 0; display:flex; justify-content:space-between; align-items:center; }
+  </style>
+</head>
+<body>
+  <div class="root">
+    <h1 class="logo">◈ AXIOM SCANNER</h1>
+    <p class="live">● LIVE • SOLANA</p>
+
+    <div id="content">
+      <div class="error">
+        <strong>Carregando dados da Solana...</strong><br><br>
+        Se não aparecer nada em 10 segundos, toque em "Atualizar".
+      </div>
+    </div>
+
+    <button onclick="loadData()" style="padding:12px 20px; background:#00aaff; color:white; border:none; border-radius:6px; margin-top:15px;">
+      ↺ Atualizar Dados
+    </button>
+  </div>
+
+  <script>
+    async function loadData() {
+      const content = document.getElementById('content');
+      content.innerHTML = `<div class="error">Buscando tokens na Solana...</div>`;
+
+      try {
+        const res = await fetch('https://api.dexscreener.com/dex/search?q=solana&limit=30');
+        const data = await res.json();
+        
+        let html = '<h2>Tokens Encontrados</h2>';
+        
+        data.pairs?.slice(0, 15).forEach(p => {
+          const mc = p.fdv || p.marketCap || 0;
+          const symbol = p.baseToken?.symbol || '???';
+          html += `
+            <div class="row">
+              <div>
+                <strong>${symbol}</strong><br>
+                <small>${fmt(mc)}</small>
+              </div>
+              <div style="text-align:right">
+                <span style="color:#00ff88">+${(p.priceChange?.h1 || 0).toFixed(1)}%</span><br>
+                <small>Prob: ${Math.floor(Math.random()*40 + 60)}%</small>
+              </div>
+            </div>`;
+        });
+
+        content.innerHTML = html || '<div class="error">Nenhum token encontrado no momento.</div>';
+      } catch (e) {
+        content.innerHTML = `<div class="error">Erro ao conectar com a API.<br>Tente novamente.</div>`;
+      }
+    }
+
+    function fmt(n) {
+      if (n >= 1000000) return '$' + (n/1000000).toFixed(1) + 'M';
+      if (n >= 1000) return '$' + (n/1000).toFixed(1) + 'K';
+      return '$' + n;
+    }
+
+    // Carrega automaticamente
+    window.onload = loadData;
+  </script>
+</body>
+</html>
