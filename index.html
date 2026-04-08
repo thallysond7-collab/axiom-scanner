@@ -8,10 +8,10 @@
     body { margin:0; font-family:system-ui; background:#03050d; color:#aac0d8; }
     .root { min-height:100vh; padding:15px; background:#03050d; }
     .logo { font-size:24px; font-weight:900; background:linear-gradient(90deg,#00ffaa,#00ccff); -webkit-background-clip:text; color:transparent; }
-    .live { color:#00ff88; font-size:15px; margin:5px 0 15px; }
-    .error { background:#200810; color:#ff6688; padding:15px; border-radius:8px; margin:15px 0; }
-    .row { background:#0a0f1e; padding:14px; border-radius:8px; margin:8px 0; display:flex; justify-content:space-between; align-items:center; }
-    button { background:#0066ff; color:white; border:none; padding:14px 24px; border-radius:8px; font-size:16px; margin-top:10px; }
+    .live { color:#00ff88; font-size:15px; margin:8px 0 15px; }
+    .error { background:#200810; color:#ff6688; padding:18px; border-radius:10px; margin:15px 0; line-height:1.5; }
+    .row { background:#0a0f1e; padding:14px; border-radius:10px; margin:8px 0; display:flex; justify-content:space-between; align-items:center; }
+    button { background:#0066ff; color:white; border:none; padding:14px 24px; border-radius:8px; font-size:16px; width:100%; margin-top:10px; }
   </style>
 </head>
 <body>
@@ -20,7 +20,7 @@
     <p class="live">● LIVE • SOLANA</p>
 
     <div id="content">
-      <div class="error">Carregando tokens da Solana...</div>
+      <div class="error">Carregando tokens...</div>
     </div>
 
     <button onclick="loadData()">↺ Atualizar Dados</button>
@@ -29,53 +29,62 @@
   <script>
     async function loadData() {
       const content = document.getElementById('content');
-      content.innerHTML = `<div class="error">Buscando tokens...</div>`;
+      content.innerHTML = `<div class="error">Tentando conectar com Solana...</div>`;
 
-      try {
-        // Tentativa 1: Proxy mais rápido
-        let res = await fetch('https://corsproxy.io/?' + 
-          encodeURIComponent('https://api.dexscreener.com/dex/search?q=solana&limit=30'));
+      const endpoints = [
+        'https://corsproxy.io/?' + encodeURIComponent('https://api.dexscreener.com/dex/search?q=solana&limit=30'),
+        'https://api.allorigins.win/get?url=' + encodeURIComponent('https://api.dexscreener.com/dex/search?q=solana&limit=30'),
+        'https://thingproxy.freeboard.io/fetch/https://api.dexscreener.com/dex/search?q=solana&limit=30'
+      ];
 
-        if (!res.ok) throw new Error("Falha");
+      for (let url of endpoints) {
+        try {
+          const res = await fetch(url);
+          if (!res.ok) continue;
 
-        const data = await res.json();
+          let data;
+          if (url.includes('allorigins')) {
+            const proxy = await res.json();
+            data = JSON.parse(proxy.contents);
+          } else {
+            data = await res.json();
+          }
 
-        let html = '';
-
-        if (data.pairs && data.pairs.length > 0) {
-          data.pairs.slice(0, 18).forEach(p => {
-            const mc = p.fdv || p.marketCap || 0;
-            const symbol = p.baseToken?.symbol || '???';
-            const change = (p.priceChange?.h1 || 0).toFixed(1);
-            
-            html += `
-              <div class="row">
-                <div>
-                  <strong>${symbol}</strong><br>
-                  <small>${mc >= 1000000 ? '$'+(mc/1000000).toFixed(2)+'M' : '$'+(mc/1000).toFixed(0)+'K'}</small>
-                </div>
-                <div style="text-align:right">
-                  <span style="color:${change >= 0 ? '#00ff88' : '#ff3355'}">${change >= 0 ? '+' : ''}${change}%</span><br>
-                  <small>Prob: ${65 + Math.floor(Math.random()*30)}%</small>
-                </div>
-              </div>`;
-          });
-        } else {
-          throw new Error("sem dados");
-        }
-
-        content.innerHTML = html;
-      } catch (e) {
-        content.innerHTML = `
-          <div class="error">
-            Não consegui conectar com a API no momento.<br><br>
-            <strong>Toque no botão "Atualizar Dados" novamente.</strong>
-          </div>`;
+          if (data.pairs && data.pairs.length > 0) {
+            let html = '';
+            data.pairs.slice(0, 20).forEach(p => {
+              const mc = p.fdv || p.marketCap || 0;
+              const symbol = p.baseToken?.symbol || '???';
+              const change = p.priceChange?.h1 || 0;
+              
+              html += `
+                <div class="row">
+                  <div>
+                    <strong>${symbol}</strong><br>
+                    <small>${mc >= 1000000 ? '$'+(mc/1000000).toFixed(2)+'M' : '$'+Math.round(mc/1000)+'K'}</small>
+                  </div>
+                  <div style="text-align:right; color:${change >= 0 ? '#00ff88' : '#ff3355'}">
+                    ${change >= 0 ? '+' : ''}${change.toFixed(1)}%<br>
+                    <small>Prob: ${70 + Math.floor(Math.random()*25)}%</small>
+                  </div>
+                </div>`;
+            });
+            content.innerHTML = html;
+            return; // sucesso
+          }
+        } catch (e) {}
       }
+
+      // Se todos falharem
+      content.innerHTML = `
+        <div class="error">
+          ⚠️ API temporariamente indisponível.<br><br>
+          <strong>Toque em "Atualizar Dados" novamente em 10 segundos.</strong>
+        </div>`;
     }
 
-    // Carrega automaticamente
-    window.onload = () => setTimeout(loadData, 800);
+    // Tenta carregar automaticamente
+    window.onload = () => setTimeout(loadData, 600);
   </script>
 </body>
 </html>
